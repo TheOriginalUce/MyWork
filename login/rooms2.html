@@ -1,0 +1,224 @@
+<?php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "login";
+
+$conn = new mysqli($servername, $username, $password, $database);
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Base WHERE clause
+$whereClause = "1=1";
+
+// Price Filter
+if (isset($_GET['minPrice']) && isset($_GET['maxPrice']) && $_GET['minPrice'] !== "" && $_GET['maxPrice'] !== "") {
+    $minPrice = (int)$_GET['minPrice'];
+    $maxPrice = (int)$_GET['maxPrice'];
+    $whereClause .= " AND price BETWEEN $minPrice AND $maxPrice";
+}
+
+// Facilities Filter
+if (isset($_GET['facilities']) && !empty($_GET['facilities'])) {
+    $facilities = explode(",", $_GET['facilities']);
+    $facilitiesConditions = [];
+    foreach ($facilities as $facility) {
+        $facilitiesConditions[] = "features LIKE '%$facility%'";
+    }
+    $whereClause .= " AND (" . implode(" OR ", $facilitiesConditions) . ")";
+}
+
+// Date Filter
+if (!empty($_GET['dateFrom']) && !empty($_GET['dateTo'])) {
+    $dateFrom = $_GET['dateFrom'];
+    $dateTo = $_GET['dateTo'];
+    $whereClause .= " AND available_from <= '$dateTo' AND available_to >= '$dateFrom'";
+}
+
+// Fetch rooms
+$sql = "SELECT * FROM rooms WHERE $whereClause";
+$result = $conn->query($sql);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rooms - Hind Historia</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <div class="header-container">
+        <a href="index.html">
+            <img src="logo.png" alt="Hind Historia Logo" class="logo">
+        </a>
+        <h1 class="site-title">Hind-Historia</h1>
+    </div>
+</header>
+
+<div class="container">
+    <!-- Filter Sidebar -->
+    <aside class="filter-sidebar">
+        <h2>Filter</h2>
+
+        <label>Price Range:</label>
+        <div class="price-inputs">
+            <input type="number" id="minPrice" placeholder="Min ₹" min="300" max="5000">
+            <span> - </span>
+            <input type="number" id="maxPrice" placeholder="Max ₹" min="300" max="5000">
+        </div>
+
+        <label>Facilities:</label>
+        <div class="facility-checkboxes">
+            <label><input type="checkbox" value="WiFi"> WiFi</label>
+            <label><input type="checkbox" value="Breakfast"> Breakfast</label>
+            <label><input type="checkbox" value="Pool"> Pool</label>
+            <label><input type="checkbox" value="Gym"> Gym</label>
+            <label><input type="checkbox" value="Parking"> Parking</label>
+        </div>
+
+        <div class="date-selector">
+            <label>Available From:</label>
+            <input type="date" id="dateFrom">
+            <label>Available To:</label>
+            <input type="date" id="dateTo">
+        </div>
+
+        <button onclick="applyFilters()">Apply Filters</button>
+    </aside>
+
+    <!-- Rooms Grid -->
+    <section class="rooms-container">
+        <?php if ($result->num_rows == 0) { ?>
+            <p class='no-rooms-message'>No rooms available as per your requirements.</p>
+        <?php } else { ?>
+            <?php while ($row = $result->fetch_assoc()) { ?>
+                <a href="room_details.php?id=<?= $row['id'] ?>" class="room-link">
+    <div class="room-card">
+        <img src="<?= $row['image'] ?>" alt="Room Image">
+        <h3><?= $row['room_name'] ?></h3>
+        <p><strong>Location:</strong> <?= $row['location'] ?></p>
+        <p><strong>Price:</strong> ₹<?= $row['price'] ?> / night</p>
+        <p><strong>Facilities:</strong></p>
+        <ul>
+            <?php foreach (explode(",", $row['features']) as $facility) { ?>
+                <li><?= trim($facility) ?></li>
+            <?php } ?>
+        </ul>
+        <p><strong>Available:</strong> <?= date("d M", strtotime($row['available_from'])) ?> - <?= date("d M", strtotime($row['available_to'])) ?></p>
+    </div>
+</a>
+
+            <?php } ?>
+        <?php } ?>
+    </section>
+</div>
+
+<script>
+function applyFilters() {
+    let minPrice = document.getElementById("minPrice").value;
+    let maxPrice = document.getElementById("maxPrice").value;
+    
+    let facilities = [];
+    document.querySelectorAll('.facility-checkboxes input:checked').forEach((checkbox) => {
+        facilities.push(checkbox.value);
+    });
+
+    let dateFrom = document.getElementById("dateFrom").value;
+    let dateTo = document.getElementById("dateTo").value;
+
+    let query = `rooms.php?`;
+
+    if (minPrice !== "" && maxPrice !== "" && minPrice >= 300 && maxPrice <= 5000) {
+        query += `minPrice=${minPrice}&maxPrice=${maxPrice}`;
+    }
+
+    if (facilities.length > 0) {
+        query += `&facilities=${facilities.join(",")}`;
+    }
+
+    if (dateFrom && dateTo) {
+        query += `&dateFrom=${dateFrom}&dateTo=${dateTo}`;
+    }
+
+    window.location.href = query;
+}
+</script>
+
+<style>
+/* Grid Layout for Rooms */
+.rooms-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+/* Room Card Styling */
+.room-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    overflow: hidden;
+    transition: transform 0.3s ease-in-out;
+    cursor: pointer;
+    padding: 15px;
+}
+
+.room-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.room-card h3 {
+    font-size: 20px;
+    margin: 10px 0;
+    color: #D2691E;
+}
+
+.room-card ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.room-card ul li {
+    font-size: 13px;
+    color: #666;
+    padding: 3px 0;
+}
+
+/* Clickable Card */
+.room-card:hover {
+    transform: scale(1.05);
+}
+
+/* No Rooms Message */
+.no-rooms-message {
+    font-size: 18px;
+    color: red;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .rooms-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .rooms-container {
+        grid-template-columns: repeat(1, 1fr);
+    }
+}
+</style>
+
+</body>
+</html>

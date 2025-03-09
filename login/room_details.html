@@ -1,0 +1,70 @@
+<?php
+// Connect to database
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "login";
+
+$conn = new mysqli($servername, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch room details using GET parameter
+if (isset($_GET['room_name'])) {
+    $room_name = urldecode($_GET['room_name']);
+
+    // Fetch room details
+    $room_query = "SELECT * FROM rooms WHERE room_name = '$room_name'";
+    $room_result = $conn->query($room_query);
+    $room = $room_result->fetch_assoc();
+
+    // Fetch room description
+    $desc_query = "SELECT description FROM room_descriptions WHERE room_name = '$room_name'";
+    $desc_result = $conn->query($desc_query);
+    $desc = $desc_result->fetch_assoc();
+
+    // Check available bookings for the room location
+    $booking_query = "SELECT COUNT(*) AS booking_count FROM bookings WHERE room_name = '$room_name'";
+    $booking_result = $conn->query($booking_query);
+    $booking = $booking_result->fetch_assoc();
+    $available_slots = 10 - $booking['booking_count'];
+} else {
+    die("Room not found!");
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Details - <?= $room['room_name'] ?></title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="room-details-container">
+        <h1><?= $room['room_name'] ?></h1>
+        <img src="<?= $room['image'] ?>" alt="<?= $room['room_name'] ?>" class="room-image">
+        <p><strong>Location:</strong> <?= $room['location'] ?></p>
+        <p><strong>Price:</strong> ₹<?= $room['price'] ?> / night</p>
+        <p><strong>Facilities:</strong></p>
+        <ul>
+            <?php foreach (explode(",", $room['features']) as $facility) { ?>
+                <li><?= trim($facility) ?></li>
+            <?php } ?>
+        </ul>
+        <p><strong>Available From:</strong> <?= date("d M", strtotime($room['available_from'])) ?> - <?= date("d M", strtotime($room['available_to'])) ?></p>
+        <p><strong>Description:</strong> <?= $desc['description'] ?? 'No description available.' ?></p>
+
+        <?php if ($available_slots > 0) { ?>
+            <p><strong>Available Slots:</strong> <?= $available_slots ?> / 10</p>
+            <a href="book_room.php?room_name=<?=urlencode($room_name) ?>" class="book-btn">Book Now</a>
+        <?php } else { ?>
+            <p class="fully-booked">This room is fully booked!</p>
+        <?php } ?>
+    </div>
+</body>
+</html>
