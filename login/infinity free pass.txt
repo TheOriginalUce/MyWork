@@ -1,0 +1,8 @@
+nBhRuTRNSp infinity free pass
+if0_38464956 username
+
+
+$servername = "sql108.infinityfree.com";  
+$username = "if0_38464956";   
+$password = "nBhRuTRNSp";       
+$database = "if0_38464956_login"; 
